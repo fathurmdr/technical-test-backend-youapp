@@ -5,8 +5,12 @@ import { createAppTest } from './utils/run-app';
 describe('AppController (e2e)', () => {
   let app: INestApplication;
 
-  beforeEach(async () => {
+  beforeAll(async () => {
     app = await createAppTest();
+  });
+
+  afterAll(async () => {
+    await app.close();
   });
 
   it('/api (GET)', () => {

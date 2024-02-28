@@ -1,12 +1,26 @@
 import { INestApplication } from '@nestjs/common';
 import * as request from 'supertest';
 import { createAppTest } from './utils/run-app';
+import { createTestUser, removeTestUser } from './utils/common';
+import { Mongoose } from 'mongoose';
+import mongoose from 'mongoose';
 
 describe('POST /api/register', () => {
   let app: INestApplication;
+  let connectionDB: Mongoose;
 
   beforeAll(async () => {
+    connectionDB = await mongoose.connect(process.env.MONGO_URI);
     app = await createAppTest();
+  });
+
+  afterAll(async () => {
+    await app.close();
+    await connectionDB.disconnect();
+  });
+
+  afterEach(async () => {
+    await removeTestUser();
   });
 
   it('should reject if email is empty', async () => {
@@ -56,47 +70,75 @@ describe('POST /api/register', () => {
     expect(response.body.error).toBe('Bad Request');
   });
 
-  it('should reject if username or email is already exist', async () => {
-    const responseExistEmail = await request(app.getHttpServer())
+  it('should reject if email is already exist', async () => {
+    let response = await request(app.getHttpServer())
       .post('/api/register')
       .send({
-        email: 'user_exist@email.com',
-        username: 'user_exist123',
+        email: 'test@email.com',
+        username: 'test',
         password: '12345678',
       });
 
-    expect(responseExistEmail.status).toBe(400);
-    expect(responseExistEmail.body.message).toBe('User already exists');
+    expect(response.status).toBe(201);
 
-    const responseExistUsername = await request(app.getHttpServer())
+    response = await request(app.getHttpServer()).post('/api/register').send({
+      email: 'test@email.com',
+      username: 'test_diff',
+      password: '12345678',
+    });
+
+    expect(response.status).toBe(400);
+    expect(response.body.message).toBe('User already exists');
+  });
+
+  it('should reject if username is already exist', async () => {
+    let response = await request(app.getHttpServer())
       .post('/api/register')
       .send({
-        email: 'user_exist123@email.com',
-        username: 'user_exist',
+        email: 'test@email.com',
+        username: 'test',
         password: '12345678',
       });
 
-    expect(responseExistUsername.status).toBe(400);
-    expect(responseExistUsername.body.message).toBe('User already exists');
+    expect(response.status).toBe(201);
 
-    const responseExistBoth = await request(app.getHttpServer())
+    response = await request(app.getHttpServer()).post('/api/register').send({
+      email: 'test_diff@email.com',
+      username: 'test',
+      password: '12345678',
+    });
+
+    expect(response.status).toBe(400);
+    expect(response.body.message).toBe('User already exists');
+  });
+
+  it('should reject if username and email is already exist', async () => {
+    let response = await request(app.getHttpServer())
       .post('/api/register')
       .send({
-        email: 'user_exist@email.com',
-        username: 'user_exist',
+        email: 'test@email.com',
+        username: 'test',
         password: '12345678',
       });
 
-    expect(responseExistBoth.status).toBe(400);
-    expect(responseExistBoth.body.message).toBe('User already exists');
-  }, 100000);
+    expect(response.status).toBe(201);
+
+    response = await request(app.getHttpServer()).post('/api/register').send({
+      email: 'test@email.com',
+      username: 'test',
+      password: '12345678',
+    });
+
+    expect(response.status).toBe(400);
+    expect(response.body.message).toBe('User already exists');
+  });
 
   it('should can register new user', async () => {
     const response = await request(app.getHttpServer())
       .post('/api/register')
       .send({
-        email: 'new_user@email.com',
-        username: 'new_user',
+        email: 'test@email.com',
+        username: 'test',
         password: '12345678',
       });
 
@@ -107,9 +149,24 @@ describe('POST /api/register', () => {
 
 describe('POST /api/login', () => {
   let app: INestApplication;
+  let connectionDB: Mongoose;
 
   beforeAll(async () => {
+    connectionDB = await mongoose.connect(process.env.MONGO_URI);
     app = await createAppTest();
+  });
+
+  afterAll(async () => {
+    await app.close();
+    await connectionDB.disconnect();
+  });
+
+  beforeEach(async () => {
+    await createTestUser();
+  });
+
+  afterEach(async () => {
+    await removeTestUser();
   });
 
   it('should reject if email or username is empty', async () => {

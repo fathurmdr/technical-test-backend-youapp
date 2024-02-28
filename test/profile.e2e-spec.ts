@@ -1,16 +1,31 @@
 import { INestApplication } from '@nestjs/common';
 import { createAppTest } from './utils/run-app';
 import * as request from 'supertest';
-import { getToken } from './utils/common';
+import { createTestUser, getToken, removeTestUser } from './utils/common';
+import { Mongoose } from 'mongoose';
+import mongoose from 'mongoose';
 
 describe('GET /api/getProfile', () => {
   let app: INestApplication;
+  let connectionDB: Mongoose;
 
   beforeAll(async () => {
+    connectionDB = await mongoose.connect(process.env.MONGO_URI);
     app = await createAppTest();
   });
 
-  beforeEach(async () => {});
+  afterAll(async () => {
+    await app.close();
+    await connectionDB.disconnect();
+  });
+
+  beforeEach(async () => {
+    await createTestUser();
+  });
+
+  afterEach(async () => {
+    await removeTestUser();
+  });
 
   it('should reject if token not provided', async () => {
     const response = await request(app.getHttpServer()).get('/api/getProfile');
@@ -37,9 +52,24 @@ describe('GET /api/getProfile', () => {
 
 describe('PUT /api/updateProfile', () => {
   let app: INestApplication;
+  let connectionDB: Mongoose;
 
   beforeAll(async () => {
+    connectionDB = await mongoose.connect(process.env.MONGO_URI);
     app = await createAppTest();
+  });
+
+  afterAll(async () => {
+    await app.close();
+    await connectionDB.disconnect();
+  });
+
+  beforeEach(async () => {
+    await createTestUser();
+  });
+
+  afterEach(async () => {
+    await removeTestUser();
   });
 
   it('should reject if token not provided', async () => {
